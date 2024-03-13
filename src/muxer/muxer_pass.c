@@ -342,6 +342,7 @@ pass_muxer_eit_cb(mpegts_psi_table_t *mt, const uint8_t *buf, int len)
   uint16_t sid;
   uint8_t *sbuf, *out;
   int olen;
+  static uint8_t version = 0;
 
   /* filter out wrong tables */
   if (buf[0] < 0x4e || buf[0] > 0x6f || len < 14)
@@ -366,6 +367,10 @@ pass_muxer_eit_cb(mpegts_psi_table_t *mt, const uint8_t *buf, int len)
     sbuf[1] &= 0xf0;
     sbuf[1] |= ((len - 3 + 4) >> 8) & 0x0f;
     sbuf[2] = (len - 3 + 4) & 0xff;
+    sbuf[5] = (sbuf[5] & 0xc1) | version; /* Fake version_number */
+  }
+  else {
+    version = sbuf[5] & 0x3e;
   }
 
   len = dvb_table_append_crc32(sbuf, len, len + 4);
