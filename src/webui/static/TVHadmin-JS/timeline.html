@@ -1,0 +1,319 @@
+<!DOCTYPE html> 
+<html>
+<head>
+<meta charset=utf-8>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="application-name" content="TVHadmin">
+<link rel="manifest" href="manifest.webmanifest" crossorigin="use-credentials">
+<title>TVHadmin - Timeline</title>
+<script src="include.js"></script>
+<script>
+
+  function click_tag(prefix, tagID) {
+    var chk;
+    if (document.getElementById(tagID).checked) chk = 1;
+    else chk = -1;
+    sessionStorage.setItem((prefix+tagID), chk);
+    location.reload();
+  }
+
+  function make_timer(event_id, title, is_series) {
+    let recDialog = document.getElementById('recDialog');
+    let recCancel = document.getElementById('recCancel');
+    let recOnce = document.getElementById('recOnce');
+    let recSeries = document.getElementById('recSeries');
+    recCancel.addEventListener('click', canc);
+    recOnce.addEventListener('click', rec);
+    if (is_series) {
+      recSeries.style.display = "block";
+      recSeries.addEventListener('click', recs);
+    }
+    else {
+	recSeries.style.display = "none";
+    }
+    document.getElementById('recText').textContent = `Record "${title}"?`;
+    recDialog.showModal();
+
+    function canc() {
+      recCancel.removeEventListener('click', canc);
+      recOnce.removeEventListener('click', rec);
+      recSeries.removeEventListener('click', recs);
+      recDialog.close();
+    }
+
+    function rec() {
+      const profile_uuid = cookies.UUID;
+      fetch(`/api/dvr/entry/create_by_event?event_id=${event_id}&config_uuid=${profile_uuid}`).then(function(response) {
+	if (response.ok) {
+	  update(2);
+	}
+      });
+      recCancel.removeEventListener('click', canc);
+      recOnce.removeEventListener('click', rec);
+      recSeries.removeEventListener('click', recs);
+      recDialog.close();
+    }
+
+    function recs(event) {
+	const profile_uuid = cookies.UUID;
+	fetch(`/api/dvr/autorec/create_by_series?event_id=${event_id}&config_uuid=${profile_uuid}`).then(function(response) {
+	  if (response.ok) {
+	    update(2);
+	  }
+	});
+	recCancel.removeEventListener('click', canc);
+	recOnce.removeEventListener('click', rec);
+	recSeries.removeEventListener('click', recs);
+	recDialog.close();
+    }
+  }
+
+  function drawCursor(refresh) {
+    var time = Date.now()/1000;
+    if(time > tnext) {
+      update(0);
+    }
+    var cursor = document.getElementById('timenow');
+    if((time >= tstart) && (time < tend)) {
+      var elem = document.getElementById('timeline');
+      var start = elem.offsetTop;
+      cursor.style.top = (start+33) + 'px';
+      cursor.style.height = (elem.offsetHeight-start) + 'px';
+      var delta = (time%1800)/textent;
+      var pos = elem.offsetLeft + 6 + ch_width
+	+ 0.98*delta*(elem.offsetWidth-ch_width-6);
+      cursor.style.left = pos + 'px';
+      cursor.style.visibility = 'visible';
+    }
+    if(refresh == 1) {
+      var sync = (time % 60) * 1000;
+      setTimeout(drawCursor, 63000-sync, 1);  // Avoid race
+    }
+  }
+
+  async function update(first) {
+    var now = Math.floor(Date.now() / 1000);
+    var utime = now;
+    if (params.has('start')) {
+      utime = Math.max(now, params.get('start'));
+    }
+    tstart = utime - utime % 1800;
+    tend = tstart + textent;
+    tnext = tend;
+    var wday = strftime('%a %e %b', utime);
+    var tnow = now - now % 1800;
+    if ((tstart - tnow) >= 86400) {
+      let tleft = utime - 86400;
+      let left2 = document.getElementById("left2");
+      left2.href = `timeline.html?start=${tleft}`;
+      left2.childNodes[0].style.visibility = 'visible';
+    }
+    if (now < tstart) {
+      let tleft = utime - textent/2;
+      let left = document.getElementById("left");
+      left.href = `timeline.html?start=${tleft}`;
+      left.childNodes[0].style.visibility = 'visible';
+    }
+    var tright = utime + textent/2;
+    document.getElementById("right").href = `timeline.html?start=${tright}`;
+    document.getElementById("right2").href = `timeline.html?start=${tstart+86400}`;
+    let s = `<th>${wday}</th><th>`;
+    var t = tstart;
+    for (i=0; i<4; i++) {
+      let time = strftime('%H:%M', t);
+      s += `<div class='row_alt' style='float: left; width: 24.5%;'>${time}</div>`;
+      t += textent / 4;
+    }
+    s += '</th>';
+    document.getElementById('newday').innerHTML = s;
+
+    if ((last_tend != tend) || (first == 2)) {
+      events = await get_epg('', tstart, tend);
+      last_tend = tend;
+    }
+    var i = 0;
+    for (const c of channels) {
+      if (!(media.All)) {
+        if (intersect(c.tags, media) == 0) continue;
+      }
+      if (first == 1) var row = table.insertRow(-1);
+      else var row = table.children[i];
+      if (lcn) var name = `${c.number} ${c.name}`;
+      else var name = c.name;
+      var e = events.filter(m => m.channelUuid === c.uuid);
+      var wd = 98 - e.length/8;
+      s = `<td class='col_channel row_${i%2}'><div class='channel_name'>${name}</div></td><td class='col_schedule'>`;
+      if (e.length) {
+	var init = 1;
+        for (const p of e) {
+          if (p.start >= tend) break;
+          if (p.stop <= now) continue;
+	  if (init) {
+	    if (p.start > tstart) {	//Need a spacer
+	      spc = ((p.start - tstart) * wd) / textent;
+	      s += `<div class='spacer' style='width: ${spc}%;'> <img src='images/spacer.gif' width=1 height=1 alt=''></div>`;
+	    }
+	    if (p.start <= now && p.stop > now) {
+	      var colour = 'onNow';
+	      tnext = Math.min(tnext, p.stop);
+	      p.onNow = 1;
+	    }
+	    init = 0;
+	  }
+	  else var colour = 'onSoon';
+	  if (p.dvrState == 'scheduled' || p.dvrState == 'recording') {
+	    colour = 'record';
+	  }
+	  var duration = Math.min(tend, p.stop) - Math.max(tstart, p.start);
+	  if (duration == 0) continue;
+	  var pc = (wd * duration) / textent;
+	  if (p.summary) var desc = p.summary;
+	  else if (p.description) var desc = p.description;
+	  else var desc = "";
+	  var subtitle = htmlspecialchars(desc);
+	  if (p.onNow) {
+	    s += `<a href='/play/ticket/stream/channel/${c.uuid}?title=${c.name}`
+            if (cookies.SUUID) s += `&profile=${cookies.SUUID}`;
+            s += `' download='${c.uuid}.m3u'><div class='item ${colour}' style='width: ${pc}%;' title='${subtitle}'>${p.title}</div></a>`;
+          }
+	  else if (p.dvrState) s += `<div class='item  ${colour}' style='width: ${pc}%;' title='${subtitle}'>${p.title}</div>`;
+	  else {
+	    var esctitle = htmlspecialchars(p.title);
+	    if (p.serieslinkUri) var is_series = 1;
+	    else var is_series = 0;
+	    s += `<div class='item  ${colour}' style='width: ${pc}%; cursor: pointer;' title='${subtitle}' onclick='make_timer("${p.eventId}", "${esctitle}", ${is_series})'>${p.title}</div>`;
+	  }
+	}
+	s += "</td>";
+      }
+      else {
+        s += `<a href='/play/ticket/stream/channel/${c.uuid}?title=${c.name}`;
+        if (cookies.SUUID) s += `&profile=${cookies.SUUID}`;
+        s += `' download='${c.uuid}.m3u'><div class='item onNow' style='width: 98%;'>No EPG Available</div></a></td>`;
+      }
+      row.innerHTML = s;
+      i++;
+    }
+  }
+</script>
+</head> 
+<body>
+<div id="container">
+  <div id="navigation">
+    <div class="logo">
+      <img src="images/logo.png" alt="TVHeadend Logo" width="150">
+    </div>
+    <div class="nav_bar">
+    </div>
+  </div>
+    <div id='layout'>
+      <div id='banner'>
+        <table>
+          <tr>
+	    <td class='col_title'><div id='mobmenu'>&#9776;</div> <h1>Timeline</h1></td>
+	    <td id='mediatags'></td>
+	    <td id='arrows'>
+	      <a id='left2'><img src='images/left2.png' title='Back 1 day' style='visibility:hidden'></a>
+	      <img src='images/spacer.gif' style='width:10px;height:32px;'>
+	      <a id='left'><img src='images/left.png' title='Back' style='visibility:hidden'></a>
+	      <img src='images/spacer.gif' style='width:10px;height:32px;'>
+	      <a href='timeline.html' id='right'><img src='images/right.png' title='Forward'></a>
+	      <img src='images/spacer.gif' style='width:10px;height:32px;'>
+	      <a href='timeline.html' id='right2'><img src='images/right2.png' title='Forward 1 day'></a>
+	    </td>
+	  </tr>
+        </table>
+      </div>
+      <div id='wrapper'>
+        <div id='timeline'>
+	  <table class='list' id='list' style='table-layout: fixed;'>
+	    <colgroup>
+	      <col id='channelname'>
+	      <col id='schedules'>
+	    </colgroup>
+	    <thead>
+	      <tr class='newday' id='newday'>
+	      </tr>
+	    </thead>
+	    <tbody>
+	    </tbody>
+	  </table>
+	  <span id='timenow' style='visibility: hidden'>
+	    <img src='images/spacer.gif' width='1' height='1' alt=''>
+	  </span>
+	  <dialog id='recDialog'>
+	    <p id='recText'></p>
+	    <div style='display: flex; justify-content: center;'>
+	      <button id='recCancel'>Cancel</button>
+	      <button id='recOnce' style='margin-left: 10px;'>Record</button>
+	      <button id='recSeries' style='margin-left: 10px;'>Series</button>
+	    </div>
+	  </dialog>
+	</div>
+      </div>
+   </div>
+  </div>
+<script>
+  var textent, tstart, tend, tnext, ch_width, params, last_tend=0;
+  var channels, tags, events, table, media, lcn;
+  var globalResizeTimer = null;
+  var cookies = get_cookies();
+
+  async function main() {
+    var tags = await get_channeltags();
+    var s = "<span class='wideonly'>";
+    media = [];
+    for (var key in cookies) {
+      if (key.startsWith("Tag_")) {
+	var tag = decodeURIComponent(key.substring(4));
+	s += "<div class='media'>" +
+		`<label for='${tag}'>${tag}:</label>` +
+		`<input type='checkbox' name='${tag}' id='${tag}' onchange='click_tag("Tim_", "${tag}")'`;
+	if (sessionStorage.getItem("Tim_"+tag)) {
+	  if (sessionStorage.getItem("Tim_"+tag) == 1) {
+	    s += " checked";
+	    media[tags[tag]] = 1;
+	  }
+	}
+	else if (cookies[("Tim_"+key.substring(4))]) {
+	  s += " checked";
+	  media[tags[tag]] = 1;
+	}
+	s += "></div>";
+      }
+    }
+    s += "</span>";
+    document.getElementById("mediatags").innerHTML = s;
+
+    const query = window.location.search;
+    params = new URLSearchParams(query);
+    textent = 14400;
+    if (cookies.TIMESPAN) textent = cookies.TIMESPAN * 3600;
+
+    if (cookies.CSORT == 1) {
+      lcn = 1;
+      ch_width = 145;
+    }
+    else {
+      lcn = 0;
+      ch_width = 120;
+    }
+    document.getElementById('channelname').style = `width: ${ch_width}px`;
+
+    channels = await get_channels(lcn);
+    table = document.getElementById("list").getElementsByTagName('tbody')[0];
+    update(1);
+
+    if (cookies.REFR) var refresh = 1;
+    else var refresh = 0;
+    window.onresize = function() {
+      if(globalResizeTimer != null) window.clearTimeout(globalResizeTimer);
+      globalResizeTimer = window.setTimeout(drawCursor, 200, refresh);
+    };
+    drawCursor(refresh);
+  }
+
+  main();
+</script>
+ </body>
+</html>
