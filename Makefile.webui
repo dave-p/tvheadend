@@ -60,6 +60,7 @@ CSS_BLUE =
 CSS_GRAY =
 CSS_ACCESS =
 CSS_TV =
+TVHADMIN =
 
 #
 # base extjs files
@@ -174,6 +175,25 @@ JAVASCRIPT_TV += $(ROOTPATH)/app/i18n.js
 JAVASCRIPT_TV += $(ROOTPATH)/tv.js
 
 #
+# tvhadmin
+#
+
+TVHADMIN += TVHadmin.html
+TVHADMIN += channels.html
+TVHADMIN += config.html
+TVHADMIN += favourites.html
+TVHADMIN += include.js
+TVHADMIN += links.html
+TVHADMIN += now.html
+TVHADMIN += recordings.html
+TVHADMIN += search.html
+TVHADMIN += status.html
+TVHADMIN += timeline.html
+TVHADMIN += timers.html
+TVHADMIN += timers1.js
+TVHADMIN += timers2.js
+
+#
 # real source paths
 #
 
@@ -185,6 +205,8 @@ CSS_SRC        = $(CSS_BLUE_SRC) $(CSS_GRAY_SRC) $(CSS_ACCESS_SRC)
 
 JAVASCRIPT_TV_SRC = $(foreach f,$(JAVASCRIPT_TV),$(WEBDIR)/$(f))
 CSS_TV_SRC     = $(foreach f,$(CSS_TV),$(WEBDIR)/$(f))
+
+TVHADMIN_SRC   = $(foreach f,$(TVHADMIN),$(WEBDIR)/$(ROOTPATH)/tvhadmin/$(f))
 
 #
 # Internationalization
@@ -299,7 +321,7 @@ compile-debug: $(WEBDIR)/extjs-debug.c $(WEBDIR)/extjs-tv-debug.c
 .PHONY: intl
 intl:
 	@printf "Building intl/js/tvheadend.js.pot\n"
-	@$(XGETTEXT2) -o intl/js/tvheadend.js.pot.new $(filter-out $(WEBDIR)/$(MARKED),$(JAVASCRIPT_SRC))
+	@$(XGETTEXT2) -o intl/js/tvheadend.js.pot.new $(filter-out $(WEBDIR)/$(MARKED),$(JAVASCRIPT_SRC)) $(TVHADMIN_SRC)
 	@sed -e 's/^"Language: /"Language: en/' < intl/js/tvheadend.js.pot.new > intl/js/tvheadend.js.pot
 
 intl/js/tvheadend.js.pot:
