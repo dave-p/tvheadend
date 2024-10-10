@@ -140,7 +140,7 @@
     var text = free.toFixed(1) + " GB (" + pc.toFixed(1) + "%)";
     systable.rows[3].cells[1].innerHTML = text;
     var x = xmlDoc.getElementsByTagName("next")[0];
-    if (x) {
+    if (x.length) {
       let t = x.childNodes[0].nodeValue;
       text = "Next: " + strftime('%F %H:%M', Date.now()/1000 + 60*t);
     }
