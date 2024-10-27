@@ -1,0 +1,151 @@
+<!DOCTYPE html> 
+<html>
+<head>
+<meta charset=utf-8>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="application-name" content="TVHadmin">
+<link rel="manifest" href="manifest.webmanifest" crossorigin="use-credentials">
+<title>TVHadmin - Favourite Channels</title>
+<script src="include.js"></script>
+<script>
+
+  function formSubmit()	{
+	document.whatandwhen.submit();
+  }
+
+</script>
+</head> 
+<body>
+  <div id="container">
+    <div id="navigation">
+      <div class="logo">
+        <img src="images/logo.png" alt="TVHeadend Logo" width="150">
+      </div>
+      <div class="nav_bar">
+      </div>
+    </div>
+    <div id='layout'>
+      <div id='banner'>
+        <form name='whatandwhen' method='GET' action='favourites.html' id='whatandwhen' hidden>
+          <table>
+            <tr>
+              <td class='col_title'><div id='mobmenu'>&#9776;</div> <h1>Favourite Channels</h1></td>
+	      <td>
+                <a href='favourites.html' id='left' hidden><img src='images/left.png'></a>&nbsp;
+                <select name='when' size='1' id='select_date' onchange='formSubmit()'></select>&nbsp;
+                <a href='favourites.html' id='right' hidden><img src='images/right.png'></a>
+	      </td>
+	    </tr>
+          </table>
+        </form>
+      </div>
+      <div id='wrapper'>
+        <div id='content'>
+        </div>
+      </div>
+    </div>
+  </div>
+<script>
+  async function main() {
+    const params = new URLSearchParams(window.location.search);
+
+    var lcn = 0;
+    if (cookies.CSORT == "1") lcn = 1;
+
+    const [ links, channels ] = await Promise.all([get_links(), get_channels(lcn)]);
+
+    var slinks = [];
+    links.forEach(function(l) {
+      slinks[l["serieslink"]] = 1;
+    });
+
+    var channelnames = channels.map(e => e.name);
+
+    let d = new Date();
+    var dt = d/1000;
+    var today = dt - (dt%86400) + d.getTimezoneOffset()*60 + (cookies.EPGSTART * 3600);
+    if (params.has("when")) var when = Number(params.get("when"));
+    else var when = today;
+
+    var date_dropdown = document.getElementById("select_date");
+    let left = document.getElementById("left");
+    let right = document.getElementById("right");
+    let prev = when - 86400;
+    if (prev >= today) {
+      left.href += `?when=${prev}`;
+      left.hidden = false;
+    }
+    var day = today;
+    for(i=0; i<8; i++) {
+      let d = strftime("%a %d/%n", day);
+      let opt = document.createElement("option");
+      opt.setAttribute("value", day);
+      opt.text = d;
+      date_dropdown.appendChild(opt);
+      day += 86400;
+    }
+    date_dropdown.selectedIndex = Math.floor((when-today)/86400);
+    var next = when + 86400;
+    if (next < day) {
+      right.href += `?when=${next}`;
+      right.hidden = false;
+    }
+    document.getElementById("whatandwhen").hidden = false;
+    var content = document.getElementById("content");
+    if (cookies.selected_channels.length) {
+      for (var c of cookies.selected_channels) {
+        if (!channelnames.includes(c)) continue;
+        var table = document.createElement("TABLE");
+        table.className = 'list';
+        var row = table.insertRow(-1);
+        row.className = 'heading';
+        var title = row.insertCell();
+        title.setAttribute('colspan', '4');
+        title.innerHTML = `<span class='channel_name'>${c}</span>`;
+        var events = await get_epg(c, when+1, next-1);
+        var last_date = ' ';
+        events.forEach(function(e) {
+          row = table.insertRow(-1);
+          row.className = 'row_alt';
+          let start = strftime("%H:%M", e.start);
+          let stop = strftime("%H:%M", e.stop);
+          let desc = '';
+          if (e.summary) desc = e.summary;
+	  else if (e.description) desc = e.description;
+          let s = `<td class='col_duration'>${start} - ${stop}</td>` +
+	    `<td class='col_title'>` +
+	    `<div class='epg_title'>${e.title}</div>` +
+	    `<div class='epg_subtitle'>${desc}</div></td>`;
+	  if (e.dvrState == 'scheduled' || e.dvrState == 'recording') {
+	    if (slinks[e.serieslinkUri]) {
+	      s += "<td></td><td><img src='images/rec.png' title='Series recording scheduled'></td>";
+	    }
+	    else {
+	      s += "<td><img src='images/rec.png' title='Recording scheduled'></td>";
+	    }
+	  }
+	  else {
+	    s += `<td><a href='favourites.html' onclick='create_by_event(event, "${e.eventId}", this)'><img src='images/rec_button1.png' title='record'></a></td>`;
+	    if (e.serieslinkUri) {
+	      s += `<td><a href='favourites.html' onclick='create_by_series(event, "${e.eventId}", this)'><img src='images/rec_buttonS.png' title='record series'></a></td>`;
+	    }
+	    else {
+	      s += "<td></td>";
+	    }
+	  }
+	  row.innerHTML = s;
+        });
+        content.append(table);
+      }
+    }
+    else {
+      var msg = document.createElement("DIV");
+      msg.className = 'epg_title';
+      msg.innerHTML = "No favourite channels have been defined.";
+      content.append(msg);
+    }
+  }
+  main();
+</script>
+</body>
+</html>
