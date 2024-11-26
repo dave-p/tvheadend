@@ -729,9 +729,10 @@ mpegts_service_mapped ( service_t *t )
 }
 
 int
-mpegts_service_is_playable ( (mpegts_service_t *)t)
+mpegts_service_is_playable ( mpegts_service_t *t)
 {
   uint16_t stype = t->s_dvb_servicetype;
+  if (stype == 0) return -1;
   if (stype > 127) return 0;
   return 1;
 }
