@@ -728,6 +728,14 @@ mpegts_service_mapped ( service_t *t )
   epggrab_ota_queue_mux(((mpegts_service_t *)t)->s_dvb_mux);
 }
 
+int
+mpegts_service_is_playable ( (mpegts_service_t *)t)
+{
+  uint16_t stype = t->s_dvb_servicetype;
+  if (stype > 127) return 0;
+  return 1;
+}
+
 void
 mpegts_service_unref ( service_t *t )
 {
