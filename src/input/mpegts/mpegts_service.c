@@ -289,6 +289,26 @@ mpegts_service_is_enabled_raw(service_t *t, int flags)
 }
 
 /*
+ * Check the service is potentially playable; ie it is not a data service
+ */
+static int
+mpegts_service_is_playable ( service_t *t )
+{
+#define VCOUNT 17
+  const static uint16_t valid[VCOUNT] = {0x00,0x01,0x02,0x0a,0x0b,0x11,0x16,0x17,0x18,
+                                         0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f,0x20};
+  mpegts_service_t *s = (mpegts_service_t*)t;
+  uint16_t stype = s->s_dvb_servicetype;
+  if (stype == 0) return -1;
+  if (stype > 127) return 0;
+  for (int i = 0; i<VCOUNT; i++) {
+    if (stype < valid[i]) return 0;
+    if (stype == valid[i]) return 1;
+  }
+  return 0;
+}
+
+/*
  * Save
  */
 static htsmsg_t *
@@ -872,6 +892,7 @@ mpegts_service_create0
   s->s_delete         = mpegts_service_delete;
   s->s_unref          = mpegts_service_unref;
   s->s_is_enabled     = mpegts_service_is_enabled;
+  s->s_is_playable    = mpegts_service_is_playable;
   s->s_config_save    = mpegts_service_config_save;
   s->s_enlist         = mpegts_service_enlist;
   s->s_start_feed     = mpegts_service_start;
@@ -1186,6 +1207,7 @@ mpegts_service_create_raw ( mpegts_mux_t *mm )
 
   s->s_delete         = mpegts_service_delete;
   s->s_is_enabled     = mpegts_service_is_enabled_raw;
+  s->s_is_playable    = mpegts_service_is_playable;
   s->s_config_save    = mpegts_service_config_save;
   s->s_enlist         = mpegts_service_enlist_raw;
   s->s_start_feed     = mpegts_service_start;

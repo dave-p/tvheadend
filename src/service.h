@@ -208,6 +208,8 @@ typedef struct service {
 
   int (*s_is_enabled)(struct service *t, int flags);
 
+  int (*s_is_playable)(struct service *t);
+
   int (*s_enlist)(struct service *s, struct tvh_input *ti,
                   service_instance_list_t *sil, int flags, int weight);
 
