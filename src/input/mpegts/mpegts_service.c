@@ -731,10 +731,18 @@ mpegts_service_mapped ( service_t *t )
 int
 mpegts_service_is_playable ( mpegts_service_t *t)
 {
+#define VCOUNT 17
+  const static uint16_t valid[VCOUNT] = {0x00,0x01,0x02,0x0a,0x0b,0x11,0x16,0x17,0x18,
+                                         0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f,0x20};
+
   uint16_t stype = t->s_dvb_servicetype;
   if (stype == 0) return -1;
   if (stype > 127) return 0;
-  return 1;
+  for (int i = 0; i<VCOUNT; i++) {
+    if (stype < valid[i]) return 0;
+    if (stype == valid[i]) return 1;
+  }
+  return 0;
 }
 
 void
