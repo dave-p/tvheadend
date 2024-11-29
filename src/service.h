@@ -196,7 +196,6 @@ typedef struct service {
    * subscription scheduling.
    */
   int s_enabled;
-  int s_verified;  // In PMT and valid streams
   int s_auto;
   int s_prio;
   int s_type_user;

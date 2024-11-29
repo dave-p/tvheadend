@@ -1608,7 +1608,6 @@ void service_save ( service_t *t, htsmsg_t *m )
 
   idnode_save(&t->s_id, m);
 
-  htsmsg_add_s32(m, "verified", t->s_verified);
   htsmsg_add_u32(m, "pcr", t->s_components.set_pcr_pid);
   htsmsg_add_u32(m, "pmt", t->s_components.set_pmt_pid);
 
@@ -1766,7 +1765,6 @@ void service_load ( service_t *t, htsmsg_t *c )
 {
   htsmsg_t *m, *hbbtv;
   htsmsg_field_t *f;
-  int32_t s32;
   uint32_t u32, pid, pid2;
   elementary_stream_t *st;
   streaming_component_type_t type;
@@ -1776,10 +1774,6 @@ void service_load ( service_t *t, htsmsg_t *c )
   idnode_load(&t->s_id, c);
 
   tvh_mutex_lock(&t->s_stream_mutex);
-  if(!htsmsg_get_s32(c, "verified", &s32))
-    t->s_verified = s32;
-  else
-    t->s_verified = 1;
   if(!htsmsg_get_u32(c, "pcr", &u32))
     t->s_components.set_pcr_pid = u32;
   if(!htsmsg_get_u32(c, "pmt", &u32))
