@@ -196,6 +196,7 @@ typedef struct service {
    * subscription scheduling.
    */
   int s_enabled;
+  int s_verified;  // In PMT and valid streams
   int s_auto;
   int s_prio;
   int s_type_user;
@@ -206,6 +207,8 @@ typedef struct service {
   LIST_HEAD(, th_subscription) s_subscriptions;
 
   int (*s_is_enabled)(struct service *t, int flags);
+
+  int (*s_is_playable)(struct service *t);
 
   int (*s_enlist)(struct service *s, struct tvh_input *ti,
                   service_instance_list_t *sil, int flags, int weight);
