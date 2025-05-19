@@ -637,10 +637,10 @@ dvb_pmt_callback
     }
   }
   /* autoenable */
-  if (elementary_stream_has_audio_or_video(&s->s_components)) {
+//  if (elementary_stream_has_audio_or_video(&s->s_components)) {
     mpegts_service_autoenable(s, "PAT and PMT");
     s->s_verified = 1;
-  }
+//  }
   tvh_mutex_unlock(&s->s_stream_mutex);
   if (restart)
     service_restart((service_t*)s);
