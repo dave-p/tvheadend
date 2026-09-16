@@ -52,14 +52,6 @@ if (!tvheadend.language || !/\S/.test(tvheadend.language)) {
     tvheadend.language = "en-US";
 }
 
-tvheadend.cookieProvider = new Ext.state.CookieProvider({
-  // 7 days from now
-  expires: new Date(new Date().getTime() + (1000 * 60 * 60 * 24 * 7))
-});
-
-/* State Provider */
-Ext.state.Manager.setProvider(tvheadend.cookieProvider);
-
 tvheadend.regexEscape = function(s) {
     return s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
 }
@@ -1074,10 +1066,6 @@ function accessUpdate(o) {
         panel.setAddress(o.address);
     if ('freediskspace' in o && 'useddiskspace' in o && 'totaldiskspace' in o)
         panel.setDiskSpace(o.freediskspace, o.useddiskspace, o.totaldiskspace);
-
-    if ('cookie_expires' in o && o.cookie_expires > 0)
-        tvheadend.cookieProvider.expires =
-            new Date(new Date().getTime() + (1000 * 60 * 60 * 24 * o.cookie_expires));
 
     if (tvheadend.autorecButton)
         tvheadend.autorecButton.setDisabled(o.dvr != true);
