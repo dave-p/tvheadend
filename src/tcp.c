@@ -448,7 +448,8 @@ tcp_socket_dead(int fd)
   if (recv(fd, NULL, 0, MSG_PEEK | MSG_DONTWAIT) < 0)
     return -errno;
 #else
-  if (recv(fd, NULL, 0, MSG_PEEK | MSG_DONTWAIT) == 0)
+  char c;
+  if (recv(fd, &c, 1, MSG_PEEK | MSG_DONTWAIT) == 0)
     return -EIO;
 #endif
   return 0;
@@ -583,7 +584,18 @@ try_again:
   sused = 0;
   LIST_FOREACH(tsl, &tcp_server_active, alink) {
     if (tsl->fd == fd) {
-      res = tsl;
+      /*
+       * tcp_server_active is newest first, and the kernel reuses a
+       * descriptor number only after its previous owner closed it.
+       * The first entry with this fd is therefore the caller's own
+       * connection. An older entry with the same fd belongs to a
+       * connection that already closed its socket and is about to be
+       * freed by tcp_server_loop(); it must not be returned.
+       */
+      if (res == NULL)
+        res = tsl;
+      else
+        tvhwarn(LS_TCP, "ignoring stale connection entry for fd %d", fd);
       if (!aa->aa_conn_limit && !aa->aa_conn_limit_streaming)
         break;
       continue;
@@ -595,7 +607,14 @@ try_again:
   if (res == NULL)
     return NULL;
 
-  if (aa->aa_conn_limit || aa->aa_conn_limit_streaming) {
+  /*
+   * The limits count streaming connections (plus DVR), so only a launch
+   * that is going to stream is checked. A non-streaming connection (e.g. an
+   * HTSP control connection fetching EPG or metadata) is not refused; it
+   * is checked again when it subscribes (htsp_read_loop relaunches with
+   * streaming = 1).
+   */
+  if (streaming && (aa->aa_conn_limit || aa->aa_conn_limit_streaming)) {
     used2 = aa->aa_conn_limit ? dvr_usage_count(aa) : 0;
     /* the rule is: allow if one condition is OK */
     c1 = aa->aa_conn_limit ? sused + used2 >= aa->aa_conn_limit : -1;

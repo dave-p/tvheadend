@@ -1202,6 +1202,8 @@ pvr_generate_filename(dvr_entry_t *de, const streaming_start_t *ss)
     *(dirsep - 1) = '\0';
     if (*x) {
       s = cleanup_filename(cfg, x, dir_dosubs);
+      if (s == NULL)
+        return -1;
       tvh_strlcatf(filename, sizeof(filename), j, "%s/", s);
       free(s);
     }
@@ -1667,8 +1669,10 @@ dvr_thread_rec_start(dvr_entry_t **_de, streaming_start_t *ss,
     if(code == 0) {
       ret = 1;
       *started = 1;
-    } else
-      dvr_stop_recording(de, code == SM_CODE_NO_SPACE ? SM_CODE_NO_SPACE : SM_CODE_INVALID_TARGET, 1, 0);
+    } else {
+      /* dvr_stop_recording() would join this very thread */
+      dvr_stop_recording_deferred(de, code == SM_CODE_NO_SPACE ? SM_CODE_NO_SPACE : SM_CODE_INVALID_TARGET);
+    }
     dvr_thread_global_unlock(de);
   }
   return ret;
